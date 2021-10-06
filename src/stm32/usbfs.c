@@ -16,6 +16,18 @@
 #include "internal.h" // GPIO
 #include "sched.h" // DECL_INIT
 
+    struct gpio_out g;
+
+#define USB_PMAADDR      USB_DRD_PMAADDR
+#define USB_EPADDR_FIELD USB_CHEP_ADDR
+#define USB_EP_CTR_RX    USB_EP_VTRX
+#define USB_EP_CTR_TX    USB_EP_VTTX
+#define USB_EPRX_STAT    USB_EP_RX_STRX
+#define USB_EPTX_STAT    USB_EP_TX_STTX
+#define USB              USB_DRD_FS
+#define USB_ISTR_EP_ID   USB_ISTR_IDN
+#define USB_CNTR_FRES    USB_CNTR_USBRST
+
 
 /****************************************************************
  * USB transfer memory
@@ -42,7 +54,8 @@ struct ep_mem {
 
 #define EPM ((struct ep_mem *)USB_PMAADDR)
 
-#define CALC_ADDR(p) (((epmword_t*)(p) - (epmword_t*)EPM) * 2)
+#define _CALC_ADDR(p) (((epmword_t*)(p) - (epmword_t*)EPM) * 2)
+#define CALC_ADDR(p) ((uint32_t)(((uint32_t)(_CALC_ADDR(p)) >> 2U) << 2U))
 #define CALC_SIZE(s) ((s) > 32 ? (DIV_ROUND_UP((s), 32) << 10) | 0x8000 \
                       : DIV_ROUND_UP((s), 2) << 10)
 
@@ -250,10 +263,12 @@ USB_IRQHandler(void)
                 USB->DADDR = set_address;
                 set_address = 0;
             }
+            // gpio_out_toggle(g);
         } else if (ep == USB_CDC_EP_BULK_OUT) {
             usb_notify_bulk_out();
         } else if (ep == USB_CDC_EP_BULK_IN) {
             usb_notify_bulk_in();
+        } else {
         }
     }
     if (istr & USB_ISTR_RESET) {
@@ -276,6 +291,10 @@ usb_init(void)
         gpio_in_setup(GPIO('A', 12), 0);
     }
 
+    g = gpio_out_setup(GPIO('B', 15), 0);
+
+    gpio_out_write(g, 1);
+
     // Enable USB clock
     enable_pclock(USB_BASE);
 
@@ -289,7 +308,9 @@ usb_init(void)
 
     // Reset usb controller and enable interrupts
     USB->CNTR = USB_CNTR_FRES;
+#if !CONFIG_MACH_STM32G0
     USB->BTABLE = 0;
+#endif
     USB->DADDR = 0;
     USB->CNTR = USB_CNTR_RESETM;
     USB->ISTR = 0;
@@ -297,6 +318,8 @@ usb_init(void)
     armcm_enable_irq(USB_IRQHandler, USB_LP_IRQn, 1);
 #elif CONFIG_MACH_STM32F0
     armcm_enable_irq(USB_IRQHandler, USB_IRQn, 1);
+#else
+    armcm_enable_irq(USB_IRQHandler, USB_UCPD1_2_IRQn, 1);
 #endif
 }
 DECL_INIT(usb_init);
