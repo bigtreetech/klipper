@@ -2,7 +2,7 @@ This directory contains external library code.
 
 The cmsis directory contains code from:
   https://github.com/ARM-software/CMSIS_5
-version 5.3.0 (49ac527aa7406cecbba46d4d3bdbc7f60c6c6d42). Contents
+version 5.7.0 (a65b7c9a3e6502127fdb80eb288d8cbdf251a6f4). Contents
 taken from the CMSIS/Core/Include/ directory.
 
 The sam3x directory contains code from the
@@ -43,6 +43,11 @@ The stm32f0 directory contains code from:
 version v1.10.1 (d0c380d668c67dcdd4e44f656be27045ce4006a6). Contents
 taken from the Drivers/CMSIS/Device/ST/STM32F0xx/ directory.
 
+The stm32g0 directory contains code from:
+  https://github.com/STMicroelectronics/STM32CubeG0
+version v1.5.0 (03cb8e9ec0cbefad623caebe47359df0bab1d05e). Contents
+taken from the Drivers/CMSIS/Device/ST/STM32G0xx/ directory.
+
 The stm32f1 directory contains code from:
   https://github.com/STMicroelectronics/STM32CubeF1
 version v1.8.0 (441b2cbdc25aa50437a59c4bffe22b88e78942c9). Contents
@@ -57,6 +62,11 @@ The stm32f4 directory contains code from:
   https://github.com/STMicroelectronics/STM32CubeF4
 version v1.24.1 (b5abca20c9676b04f8d2885a668a9b653ee65705). Contents
 taken from the Drivers/CMSIS/Device/ST/STM32F4xx/ directory.
+
+The stm32h7 directory contains code from:
+  https://github.com/STMicroelectronics/STM32CubeH7
+version v1.7.0 (79196b09acfb720589f58e93ccf956401b18a191). Contents
+taken from the Drivers/CMSIS/Device/ST/STM32H7xx/ directory.
 
 The rp2040 directory contains code from the pico sdk:
   https://github.com/raspberrypi/pico-sdk.git
