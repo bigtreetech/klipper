@@ -55,8 +55,6 @@ gpio_adc_setup(uint32_t pin)
     if (!is_enabled_pclock(adc_base)) {
         enable_pclock(adc_base);
 
-        // SET_BIT(RCC->APBENR2, RCC_APBENR2_ADCEN);
-        
         // All channel use the setting of SMP1[2:0] register
         adc->SMPR &= ~ADC_SMPR_SMPSEL;
         adc->SMPR &= ~ADC_SMPR_SMP1_Msk;
@@ -66,7 +64,7 @@ gpio_adc_setup(uint32_t pin)
         adc->CFGR1 |= ADC_CFGR1_OVRMOD;
         // PCLK / 2
         adc->CFGR2 |= ADC_CFGR2_CKMODE_0;
-        
+
         // do not enable ADC before calibration
         if (adc->CR & ADC_CR_ADEN)
             adc->CR |= ADC_CR_ADDIS;  // Disable ADC
@@ -74,11 +72,11 @@ gpio_adc_setup(uint32_t pin)
                ;
         adc->CR |= ADC_CR_ADVREGEN; // Enable ADC internal voltage regulator
         init_delay();
-            
+
         // start calibration and wait for completion
         adc->CR |= ADC_CR_ADCAL;
         while (adc->CR & ADC_CR_ADCAL)
-            ;        
+            ;
         init_delay();
 
         // if not enabled

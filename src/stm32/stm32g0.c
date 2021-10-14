@@ -52,7 +52,7 @@ typedef struct
 //     {DAC1_BASE, &RCC->APBENR1, 29},
 //     {LPTIM2_BASE, &RCC->APBENR1, 30},
 //     {LPTIM1_BASE, &RCC->APBENR1, 31},
-    
+
 //     {SYSCFG_BASE, &RCC->APBENR2, 0},
 //     {TIM1_BASE, &RCC->APBENR2, 11},
 //     {SPI1_BASE, &RCC->APBENR2, 12},
@@ -88,18 +88,12 @@ const periph_map_t apb_mess_map[] = {
 void
 enable_pclock(uint32_t periph_base)
 {
-    for (uint8_t i = 0; i < sizeof(apb_mess_map) / sizeof(apb_mess_map[0]); i++) {
+    for (uint8_t i = 0; i < ARRAY_SIZE(apb_mess_map); i++) {
         if (periph_base == apb_mess_map[i].periph_addr) {
             *apb_mess_map[i].rcc_src |= 1 << apb_mess_map[i].rcc_bit;
             return;
         }
     }
-    // if (periph_base < IOPORT_BASE) {
-    //     for (uint8_t i = 0; i < sizeof(apb_address) / sizeof(apb_address[0]); i++) {
-    //         if (periph_base == apb_address[i].periph_addr) {
-    //             *apb_address[i].rcc_src |= 1 << apb_address[i].rcc_bit;
-    //         }
-    //     }
     if (periph_base < SYSCFG_BASE) {
         uint32_t pos = (periph_base - APBPERIPH_BASE) / 0x400;
         RCC->APBENR1 |= 1 << pos;
@@ -122,17 +116,17 @@ enable_pclock(uint32_t periph_base)
 // Check if a peripheral clock has been enabled
 int
 is_enabled_pclock(uint32_t periph_base)
-{    
+{
     if (periph_base < SYSCFG_BASE) {
         uint32_t pos = (periph_base - APBPERIPH_BASE) / 0x400;
         return RCC->APBENR1 & (1 << pos);
     } else if (periph_base < AHBPERIPH_BASE) {
         uint32_t pos = (periph_base - SYSCFG_BASE) / 0x400;
         return RCC->APBENR2 & (1 << pos);
-    } else if (periph_base < IOPORT_BASE){        
+    } else if (periph_base < IOPORT_BASE){
         uint32_t pos = (periph_base - AHBPERIPH_BASE) / 0x400;
         return RCC->AHBENR & 1 << pos;
-    } else{   
+    } else{
         uint32_t pos = (periph_base - IOPORT_BASE) / 0x400;
         return RCC->IOPENR & 1 << pos;
     }
@@ -208,16 +202,12 @@ pll_setup(void)
     RCC->CFGR = 0x00000000;
     RCC->CR = 0x00000500;
 
-    /**************** HAL_RCC_OscConfig ********************/
-    // HSE Config
+    // Enable HSE
     RCC->CR |= RCC_CR_HSEON;
-    // Wait till HSE is ready
     while ((RCC->CR & RCC_CR_HSERDY) == 0U)
         ;
-    // PLL Config
-    // Disable the main PLL
+    // Disable PLL
     RCC->CR &= ~RCC_CR_PLLON;
-    // Wait till PLL is ready
     while ((RCC->CR & RCC_CR_PLLRDY) != 0U)
         ;
     // Set PLL
@@ -230,39 +220,29 @@ pll_setup(void)
                     | (uint32_t) (RCC_PLLCFGR_PLLP_0)
                     | (uint32_t) (RCC_PLLCFGR_PLLQ_0)
                     | (uint32_t) (RCC_PLLCFGR_PLLR_0)));
-    // Enable the main PLL
+    // Enable PLL
     RCC->CR |=RCC_CR_PLLON;
     // Enable PLLR Clock output
     RCC->PLLCFGR |= RCC_PLLCFGR_PLLREN;
     // Wait till PLL is ready
     while ((RCC->CR & RCC_CR_PLLRDY) == 0U)
         ;
-    /* Enable the Internal Low Speed oscillator (HSI48). */
+    // Enable HSI48
     RCC->CR |= RCC_CR_HSI48ON;
-    /* Wait till HSI48 is ready */
     while ((RCC->CR &RCC_CR_HSI48RDY) == 0U)
         ;
-
-    /**************** HAL_RCC_ClockConfig(FLASH_LATENCY_2) ********************/
-    /* Program the new number of wait states to the LATENCY bits in the FLASH_ACR register */
     MODIFY_REG(FLASH->ACR, FLASH_ACR_LATENCY, FLASH_ACR_LATENCY_1);
     while ((FLASH->ACR & FLASH_ACR_LATENCY) != FLASH_ACR_LATENCY_1)
         ;
-
-    /*-------------------------- HCLK Configuration --------------------------*/
-    MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE, (RCC_CFGR_PPRE_2 | RCC_CFGR_PPRE_1 | RCC_CFGR_PPRE_0));
+    MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE, \
+               (RCC_CFGR_PPRE_2 | RCC_CFGR_PPRE_1 | RCC_CFGR_PPRE_0));
     MODIFY_REG(RCC->CFGR, RCC_CFGR_HPRE, 0x00000000U);
-
-    /*------------------------- SYSCLK Configuration ---------------------------*/
-    /* PLL is selected as System Clock Source */
-    /* Check the PLL ready flag */
     while ((RCC->CR & RCC_CR_PLLRDY) == 0U)
         ;
     MODIFY_REG(RCC->CFGR, RCC_CFGR_SW, RCC_CFGR_SW_1);
-
     // while ((RCC->CFGR & RCC_CFGR_SWS) != (RCC_CFGR_SW_1 << RCC_CFGR_SWS_Pos))
     //     ;
-    /*-------------------------- PCLK1 Configuration ---------------------------*/
+
     MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE, 0x00000000U);
 
     volatile uint32_t wait_loop_index = 20000;

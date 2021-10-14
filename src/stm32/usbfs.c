@@ -16,17 +16,19 @@
 #include "internal.h" // GPIO
 #include "sched.h" // DECL_INIT
 
-    struct gpio_out g;
+struct gpio_out g;
 
-#define USB_PMAADDR      USB_DRD_PMAADDR
-#define USB_EPADDR_FIELD USB_CHEP_ADDR
-#define USB_EP_CTR_RX    USB_EP_VTRX
-#define USB_EP_CTR_TX    USB_EP_VTTX
-#define USB_EPRX_STAT    USB_EP_RX_STRX
-#define USB_EPTX_STAT    USB_EP_TX_STTX
-#define USB              USB_DRD_FS
-#define USB_ISTR_EP_ID   USB_ISTR_IDN
-#define USB_CNTR_FRES    USB_CNTR_USBRST
+#if CONFIG_MACH_STM32G0
+    #define USB_PMAADDR      USB_DRD_PMAADDR
+    #define USB_EPADDR_FIELD USB_CHEP_ADDR
+    #define USB_EP_CTR_RX    USB_EP_VTRX
+    #define USB_EP_CTR_TX    USB_EP_VTTX
+    #define USB_EPRX_STAT    USB_EP_RX_STRX
+    #define USB_EPTX_STAT    USB_EP_TX_STTX
+    #define USB              USB_DRD_FS
+    #define USB_ISTR_EP_ID   USB_ISTR_IDN
+    #define USB_CNTR_FRES    USB_CNTR_USBRST
+#endif
 
 
 /****************************************************************
