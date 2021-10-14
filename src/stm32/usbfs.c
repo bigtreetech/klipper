@@ -16,7 +16,7 @@
 #include "internal.h" // GPIO
 #include "sched.h" // DECL_INIT
 
-struct gpio_out g;
+struct gpio_out gTest;
 
 #if CONFIG_MACH_STM32G0
     #define USB_PMAADDR      USB_DRD_PMAADDR
@@ -56,28 +56,67 @@ struct ep_mem {
 
 #define EPM ((struct ep_mem *)USB_PMAADDR)
 
-#define _CALC_ADDR(p) (((epmword_t*)(p) - (epmword_t*)EPM) * 2)
-#define CALC_ADDR(p) ((uint32_t)(((uint32_t)(_CALC_ADDR(p)) >> 2U) << 2U))
+#define CALC_ADDR(p) (((epmword_t*)(p) - (epmword_t*)EPM) * 2)
 #define CALC_SIZE(s) ((s) > 32 ? (DIV_ROUND_UP((s), 32) << 10) | 0x8000 \
                       : DIV_ROUND_UP((s), 2) << 10)
+
+
+#define USB_CNTRX_BLSIZE                      (0x1U << 31)
+#define USB_DRD_CALC_BLK32(pdwReg, wCount, wNBlocks) \
+  do { \
+    /* Divide PacketSize by 32 to calculate the Nb of Block32 */ \
+    (wNBlocks) =((uint32_t)(wCount) >> 5U); \
+    if (((uint32_t)(wCount) % 32U) == 0U)  \
+    { \
+      (wNBlocks)--; \
+    } \
+    \
+    (pdwReg)|= (uint32_t)((((wNBlocks) << 26U)) | USB_CNTRX_BLSIZE); \
+  } while(0) /* USB_DRD_CALC_BLK32 */
 
 // Setup the transfer descriptors in dedicated usb memory
 static void
 btable_configure(void)
 {
-    EPM->ep0.count_tx = 0;
-    EPM->ep0.addr_tx = CALC_ADDR(EPM->ep0_tx);
-    EPM->ep0.count_rx = CALC_SIZE(USB_CDC_EP0_SIZE);
-    EPM->ep0.addr_rx = CALC_ADDR(EPM->ep0_rx);
+    // EPM->ep0.count_tx = 0;
+    // EPM->ep0.addr_tx = CALC_ADDR(EPM->ep0_tx);
+    // EPM->ep0.count_rx = CALC_SIZE(USB_CDC_EP0_SIZE);
+    // EPM->ep0.addr_rx = CALC_ADDR(EPM->ep0_rx);
 
-    EPM->ep_acm.count_tx = 0;
-    EPM->ep_acm.addr_tx = CALC_ADDR(EPM->ep_acm_tx);
+    // EPM->ep_acm.count_tx = 0;
+    // EPM->ep_acm.addr_tx = CALC_ADDR(EPM->ep_acm_tx);
 
-    EPM->ep_bulk_out.count_rx = CALC_SIZE(USB_CDC_EP_BULK_OUT_SIZE);
-    EPM->ep_bulk_out.addr_rx = CALC_ADDR(EPM->ep_bulk_out_rx);
+    // EPM->ep_bulk_out.count_rx = CALC_SIZE(USB_CDC_EP_BULK_OUT_SIZE);
+    // EPM->ep_bulk_out.addr_rx = CALC_ADDR(EPM->ep_bulk_out_rx);
 
-    EPM->ep_bulk_in.count_tx = 0;
-    EPM->ep_bulk_in.addr_tx = CALC_ADDR(EPM->ep_bulk_in_tx);
+    // EPM->ep_bulk_in.count_tx = 0;
+    // EPM->ep_bulk_in.addr_tx = CALC_ADDR(EPM->ep_bulk_in_tx);
+
+    uint32_t wNBlocks;
+    USB_DRD_PMA_BUFF->TXBD &= USB_PMA_TXBD_ADDMSK;
+    USB_DRD_PMA_BUFF->TXBD |= CALC_ADDR(EPM->ep0_tx);
+    USB_DRD_PMA_BUFF->TXBD &= USB_PMA_TXBD_COUNTMSK;
+    USB_DRD_CALC_BLK32(USB_DRD_PMA_BUFF->TXBD, 0, wNBlocks);
+    USB_DRD_PMA_BUFF->RXBD &= USB_PMA_RXBD_ADDMSK;
+    USB_DRD_PMA_BUFF->RXBD |= CALC_ADDR(EPM->ep0_rx);
+    USB_DRD_PMA_BUFF->RXBD &= USB_PMA_RXBD_COUNTMSK;
+    USB_DRD_CALC_BLK32(USB_DRD_PMA_BUFF->RXBD, USB_CDC_EP0_SIZE, wNBlocks);
+
+
+    (USB_DRD_PMA_BUFF + 1)->TXBD &= USB_PMA_TXBD_ADDMSK;
+    (USB_DRD_PMA_BUFF + 1)->TXBD |= CALC_ADDR(EPM->ep_acm_tx);
+    (USB_DRD_PMA_BUFF + 1)->TXBD &= USB_PMA_TXBD_COUNTMSK;
+    USB_DRD_CALC_BLK32((USB_DRD_PMA_BUFF + 1)->TXBD, 0, wNBlocks);
+
+    (USB_DRD_PMA_BUFF + 2)->RXBD &= USB_PMA_TXBD_ADDMSK;
+    (USB_DRD_PMA_BUFF + 2)->RXBD |= CALC_ADDR(EPM->ep_bulk_out_rx);
+    (USB_DRD_PMA_BUFF + 2)->RXBD &= USB_PMA_TXBD_COUNTMSK;
+    USB_DRD_CALC_BLK32((USB_DRD_PMA_BUFF + 2)->RXBD, USB_CDC_EP_BULK_OUT_SIZE, wNBlocks);
+
+    (USB_DRD_PMA_BUFF + 3)->TXBD &= USB_PMA_TXBD_ADDMSK;
+    (USB_DRD_PMA_BUFF + 3)->TXBD |= CALC_ADDR(EPM->ep_bulk_in_tx);
+    (USB_DRD_PMA_BUFF + 3)->TXBD &= USB_PMA_TXBD_COUNTMSK;
+    USB_DRD_CALC_BLK32((USB_DRD_PMA_BUFF + 3)->TXBD, 0, wNBlocks);
 }
 
 // Read a packet stored in dedicated usb memory
@@ -148,7 +187,8 @@ usb_read_bulk_out(void *data, uint_fast8_t max_len)
     if ((epr & USB_EPRX_STAT) == USB_EP_RX_VALID)
         // No data ready
         return -1;
-    uint32_t count = EPM->ep_bulk_out.count_rx & 0x3ff;
+    // uint32_t count = EPM->ep_bulk_out.count_rx & 0x3ff;
+    uint32_t count = (USB_DRD_PMA_BUFF + USB_CDC_EP_BULK_OUT)->RXBD & USB_PMA_RXBD_COUNTMSK;
     if (count > max_len)
         count = max_len;
     btable_read_packet(data, EPM->ep_bulk_out_rx, count);
@@ -164,7 +204,11 @@ usb_send_bulk_in(void *data, uint_fast8_t len)
         // No buffer space available
         return -1;
     btable_write_packet(EPM->ep_bulk_in_tx, data, len);
-    EPM->ep_bulk_in.count_tx = len;
+    // EPM->ep_bulk_in.count_tx = len;
+    uint32_t wNBlocks;
+    (USB_DRD_PMA_BUFF + USB_CDC_EP_BULK_IN)->TXBD &= USB_PMA_TXBD_COUNTMSK;
+    USB_DRD_CALC_BLK32((USB_DRD_PMA_BUFF + USB_CDC_EP_BULK_IN)->TXBD, len, wNBlocks);
+    
     USB_EPR[USB_CDC_EP_BULK_IN] = set_stat_tx_bits(epr, USB_EP_TX_VALID);
     return len;
 }
@@ -176,7 +220,8 @@ usb_read_ep0(void *data, uint_fast8_t max_len)
     if ((epr & USB_EPRX_STAT) != USB_EP_RX_NAK)
         // No data ready
         return -1;
-    uint32_t count = EPM->ep0.count_rx & 0x3ff;
+    // uint32_t count = EPM->ep0.count_rx & 0x3ff;
+    uint32_t count = (USB_DRD_PMA_BUFF + 0)->RXBD & USB_PMA_RXBD_COUNTMSK;
     if (count > max_len)
         count = max_len;
     btable_read_packet(data, EPM->ep0_rx, count);
@@ -201,7 +246,10 @@ usb_send_ep0(const void *data, uint_fast8_t len)
         // No buffer space available
         return -1;
     btable_write_packet(EPM->ep0_tx, data, len);
-    EPM->ep0.count_tx = len;
+    // EPM->ep0.count_tx = len;
+    uint32_t wNBlocks;
+    (USB_DRD_PMA_BUFF + 0)->TXBD &= USB_PMA_TXBD_COUNTMSK;
+    USB_DRD_CALC_BLK32((USB_DRD_PMA_BUFF + 0)->TXBD, len, wNBlocks);
     USB_EPR[0] = set_stat_tx_bits(epr, USB_EP_TX_VALID);
     return len;
 }
@@ -265,7 +313,7 @@ USB_IRQHandler(void)
                 USB->DADDR = set_address;
                 set_address = 0;
             }
-            // gpio_out_toggle(g);
+            // gpio_out_toggle(gTest);
         } else if (ep == USB_CDC_EP_BULK_OUT) {
             usb_notify_bulk_out();
         } else if (ep == USB_CDC_EP_BULK_IN) {
@@ -293,9 +341,9 @@ usb_init(void)
         gpio_in_setup(GPIO('A', 12), 0);
     }
 
-    g = gpio_out_setup(GPIO('B', 15), 0);
+    gTest = gpio_out_setup(GPIO('B', 15), 0);
 
-    gpio_out_write(g, 1);
+    gpio_out_write(gTest, 1);
 
     // Enable USB clock
     enable_pclock(USB_BASE);
