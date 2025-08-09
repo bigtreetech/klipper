@@ -191,6 +191,14 @@ class EddyCalibration:
     cmd_EDDY_CALIBRATE_help = "Calibrate eddy current probe"
     def cmd_EDDY_CALIBRATE(self, gcmd):
         self.probe_speed = gcmd.get_float("PROBE_SPEED", 5., above=0.)
+        toolhead = self.printer.lookup_object('toolhead')
+        curtime = self.printer.get_reactor().monotonic()
+        if 'xy' not in toolhead.get_status(curtime)['homed_axes']:
+            raise self.printer.command_error("Must home X and Y before probe")
+        if 'z' not in toolhead.get_status(curtime)['homed_axes']:
+            pos = toolhead.get_position()
+            pos[2] = toolhead.get_status(curtime)["axis_maximum"][2]
+            toolhead.set_position(pos, homing_axes=[2])
         # Start manual probe
         manual_probe.ManualProbeHelper(self.printer, gcmd,
                                        self.post_manual_probe)
@@ -312,6 +320,7 @@ class EddyDescend:
         self._param_helper = param_helper
         self._z_min_position = probe.lookup_minimum_z(config)
         self._z_offset = config.getfloat('z_offset', minval=0.)
+        self.position_endstop = config.getfloat('position_endstop', minval=0.)
         self._dispatch = mcu.TriggerDispatch(self._mcu)
         self._trigger_time = 0.
         self._gather = None
@@ -322,7 +331,7 @@ class EddyDescend:
     def home_start(self, print_time, sample_time, sample_count, rest_time,
                    triggered=True):
         self._trigger_time = 0.
-        trigger_freq = self._calibration.height_to_freq(self._z_offset)
+        trigger_freq = self._calibration.height_to_freq(self.position_endstop)
         trigger_completion = self._dispatch.start(print_time)
         self._sensor_helper.setup_home(
             print_time, trigger_freq, self._dispatch.get_oid(),
