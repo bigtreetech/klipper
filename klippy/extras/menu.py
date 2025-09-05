@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Basic LCD menu support
 #
-# Copyright (C) 2020  Janar Soot <janar.soot@gmail.com>
+# Copyright (C) 2020  Janar Sööt <janar.soot@gmail.com>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import os, logging, ast, re
@@ -196,7 +196,6 @@ class MenuElement(object):
             return self._scripts[name](self, context)
         # check static string
         elif isinstance(self._scripts[name], str):
-            self.manager.exit() #ADDED BY MENSON
             return self._scripts[name]
 
     def run_script(self, name, **kwargs):
@@ -670,8 +669,8 @@ class MenuVSDList(MenuList):
         if sdcard is not None:
             files = sdcard.get_file_list(path = "system")
             for fname, fsize in files:
-                self.insert_item(self.manager.menuitem_from('command',
-                 name=repr(fname), gcode='M23 /%s\r\nM24' % str(fname)))
+                self.insert_item(self.manager.menuitem_from(
+                    'command', name=repr(fname), gcode='M23 /%s' % str(fname)))
 
 class MenuUSBList(MenuList):
     def __init__(self, manager, config, **kwargs):
@@ -683,9 +682,8 @@ class MenuUSBList(MenuList):
         if sdcard is not None:
             files = sdcard.get_file_list(path = "/USB")
             for fname, fsize in files:
-                self.insert_item(self.manager.menuitem_from('command',
-                 name=repr(fname), gcode='M23 /%s\r\nM24' % str(fname)))
-
+                self.insert_item(self.manager.menuitem_from(
+                    'command', name=repr(fname), gcode='M23 /%s' % str(fname)))
 menu_items = {
     'disabled': MenuDisabled,
     'command': MenuCommand,
