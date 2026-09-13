@@ -122,7 +122,7 @@ nav:
       - Bed_Mesh.md
       - Endstop_Phase.md
       - Axis_Twist_Compensation.md
-    - Resonanz-Kompensation:
+    - Resonanz Kompensation:
       - Resonance_Compensation.md
       - Measuring_Resonances.md
     - Pressure_Advance.md
